@@ -55,7 +55,7 @@ public:
         return false;
     }
 
-    void await_suspend(coro_handle_t continuation) noexcept {
+    void await_suspend(std::coroutine_handle<> continuation) noexcept {
         handle_.promise().continuation_ = continuation;
         g_loop.schedule(handle_);
     }
@@ -66,6 +66,83 @@ public:
         }
 
         return std::move(handle_.promise().result_.value());
+    }
+
+    Task(coro_handle_t h) : handle_(h) {}
+    ~Task() { if (handle_) handle_.destroy(); }
+
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
+    Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
+    Task& operator=(Task&& other) noexcept {
+        if (this != &other) {
+            if (handle_) handle_.destroy();
+            handle_ = std::exchange(other.handle_, nullptr);
+        }
+        return *this;
+    }
+
+    coro_handle_t Handle() { return handle_; }
+
+private:
+    coro_handle_t handle_;
+};
+
+template <>
+class Task<void> {
+public:
+    struct promise_type;
+    using coro_handle_t = std::coroutine_handle<promise_type>;
+
+    struct promise_type {
+        std::exception_ptr exception_;
+        std::coroutine_handle<> continuation_{nullptr};
+
+        struct final_awaiter;
+
+        auto get_return_object() {
+            return coro_handle_t::from_promise(*this);
+        }
+
+        auto initial_suspend() noexcept {
+            return std::suspend_always{};
+        }
+
+        auto final_suspend() noexcept {
+            return final_awaiter{};
+        }
+
+        void return_void() noexcept {}
+
+        void unhandled_exception() { exception_ = std::current_exception(); }
+
+        struct final_awaiter {
+            bool await_ready() noexcept { return false; }
+
+            std::coroutine_handle<> await_suspend(coro_handle_t handle) noexcept {
+                if (handle.promise().continuation_) {
+                    return handle.promise().continuation_;
+                }
+                return std::noop_coroutine();
+            }
+
+            void await_resume() noexcept {}
+        };
+    };
+
+    bool await_ready() const noexcept {
+        return false;
+    }
+
+    void await_suspend(std::coroutine_handle<> continuation) noexcept {
+        handle_.promise().continuation_ = continuation;
+        g_loop.schedule(handle_);
+    }
+
+    void await_resume() {
+        if (handle_.promise().exception_) {
+            std::rethrow_exception(handle_.promise().exception_);
+        }
     }
 
     Task(coro_handle_t h) : handle_(h) {}

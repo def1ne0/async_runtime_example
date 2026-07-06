@@ -1,36 +1,33 @@
-#include <iostream>
+#include <print>
 #include <coro/pool/event_pool.hpp>
 #include <coro/task/task.hpp>
 
 coro::Task<int> do_math(const int x) {
-    std::cout << "[do_math] Начали считать...\n";
+    std::println("[do_math] Начали считать...");
     co_await coro::AsyncSleep{std::chrono::milliseconds(100)};
-    std::cout << "[do_math] Посчитали!\n";
+    std::println("[do_math] Посчитали!");
     co_return x * 2;
 }
 
-coro::Task<int> main_logic() {
-    std::cout << "[main] Старт\n";
+coro::Task<void> main_logic() {
+    std::println("[main] Старт");
 
-    std::cout << "[main] Ждем результат do_math...\n";
-
+    std::println("[main] Ждем результат do_math...");
     const auto result = co_await do_math(21);
+    std::println("[main] Получили результат: {}", result);
 
-    std::cout << "[main] Получили результат: " << result << "\n";
-
-    std::cout << "[main] Идем спать на 500мс...\n";
+    std::println("[main] Идем спать на 500мс...");
     co_await coro::AsyncSleep{std::chrono::milliseconds(500)};
+    std::println("[main] Проснулись! Завершаемся.");
 
-    std::cout << "[main] Проснулись! Завершаемся.\n";
-
-    co_return 0;
+    co_return;
 }
 
-coro::Task<char> some() {
-    std::cout << "[some] Начали считать...\n";
+coro::Task<void> some() {
+    std::println("[some] Начали считать...");
     co_await coro::AsyncSleep{std::chrono::milliseconds(100)};
-    std::cout << "[some] Посчитали!\n";
-    co_return 'A';
+    std::println("[some] Посчитали!");
+    co_return;
 }
 
 int main() {
@@ -40,7 +37,7 @@ int main() {
     coro::g_loop.schedule(task.Handle());
     coro::g_loop.schedule(sm.Handle());
 
-    std::cout << "--- Запуск Event Loop ---\n";
+    std::println("--- Запуск Event Loop ---");
     coro::g_loop.run();
-    std::cout << "--- Event Loop завершен ---\n";
+    std::println("--- Event Loop завершен ---");
 }
