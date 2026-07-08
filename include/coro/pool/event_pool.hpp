@@ -19,7 +19,7 @@ public:
     void Schedule(std::coroutine_handle<> handle);
 
     template <typename T, typename U = EventPool>
-        requires attached_task_type<T, U>
+        requires task_type<T, U>
     void Schedule(T&& task) {
         task.Attach(*this);
     }
