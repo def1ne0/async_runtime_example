@@ -1,43 +1,50 @@
 #include <print>
 #include <coro/pool/event_pool.hpp>
 #include <coro/task/task.hpp>
+#include <coro/awaiters/async_sleep.hpp>
 
-coro::Task<int> do_math(const int x) {
-    std::println("[do_math] Начали считать...");
-    co_await coro::AsyncSleep{std::chrono::milliseconds(100)};
-    std::println("[do_math] Посчитали!");
-    co_return x * 2;
+coro::EventPool pool;
+
+coro::Task<void> first() {
+    std::println("[first] started");
+
+    std::println("[first] large calculation started");
+    co_await coro::AsyncSleep{std::chrono::milliseconds{100}};
+    std::println("[first] large calculation finished");
+
+    std::println("[first] finished");
 }
 
-coro::Task<void> main_logic() {
-    std::println("[main] Старт");
+coro::Task<int> third(const int value) {
+    std::println("[third] started");
 
-    std::println("[main] Ждем результат do_math...");
-    const auto result = co_await do_math(21);
-    std::println("[main] Получили результат: {}", result);
+    std::println("[third] large calculation started");
+    co_await coro::AsyncSleep{std::chrono::milliseconds{300}};
+    std::println("[third] large calculation finished");
 
-    std::println("[main] Идем спать на 500мс...");
-    co_await coro::AsyncSleep{std::chrono::milliseconds(500)};
-    std::println("[main] Проснулись! Завершаемся.");
+    std::println("[third] finished");
 
-    co_return;
+    co_return value * 2;
 }
 
-coro::Task<void> some() {
-    std::println("[some] Начали считать...");
-    co_await coro::AsyncSleep{std::chrono::milliseconds(100)};
-    std::println("[some] Посчитали!");
-    co_return;
+coro::Task<void> second() {
+    std::println("[second] started");
+
+    std::println("[second] calling third with 26");
+    auto res = co_await coro::Task{third(26), &pool};
+    std::println("[second] third finished with result: {}", res);
+
+    std::println("[second] finished");
 }
 
 int main() {
-    auto task = main_logic();
-    auto sm = some();
+    const auto fst = coro::Task{first(), &pool};
+    const auto snd = coro::Task{second(), &pool};
 
-    coro::g_loop.schedule(task.Handle());
-    coro::g_loop.schedule(sm.Handle());
+    pool.Schedule(fst);
+    pool.Schedule(snd);
 
-    std::println("--- Запуск Event Loop ---");
-    coro::g_loop.run();
-    std::println("--- Event Loop завершен ---");
+    std::println("Event pool started");
+    pool.Run();
+    std::println("Event pool finished");
 }

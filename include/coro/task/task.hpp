@@ -1,11 +1,18 @@
 #pragma once
 
 #include <coroutine>
+#include <memory>
 #include <optional>
 
-#include "../pool/event_pool.hpp"
-
 namespace coro {
+
+class EventPool; // No need to include full include/coro/pool/event_pool.hpp header.
+
+struct basic_promise {
+    EventPool* pool_{nullptr};
+    std::coroutine_handle<> continuation_{nullptr};
+    std::exception_ptr exception_;
+};
 
 template <typename T>
 class Task {
@@ -13,10 +20,8 @@ public:
     struct promise_type;
     using coro_handle_t = std::coroutine_handle<promise_type>;
 
-    struct promise_type {
-        std::optional<T> result_{};
-        std::exception_ptr exception_;
-        std::coroutine_handle<> continuation_{nullptr};
+    struct promise_type final : basic_promise {
+        std::optional<T> result_;
 
         struct final_awaiter;
 
@@ -33,14 +38,18 @@ public:
         }
 
         template <typename U>
-        void return_value(U&& value) { result_.emplace(std::forward<U>(value)); }
+        void return_value(U&& value) {
+            result_.emplace(std::forward<U>(value));
+        }
 
-        void unhandled_exception() { exception_ = std::current_exception(); }
+        void unhandled_exception() {
+            exception_ = std::current_exception();
+        }
 
         struct final_awaiter {
             bool await_ready() noexcept { return false; }
 
-            std::coroutine_handle<> await_suspend(coro_handle_t handle) noexcept {
+            std::coroutine_handle<> await_suspend(const coro_handle_t handle) noexcept {
                 if (handle.promise().continuation_) {
                     return handle.promise().continuation_;
                 }
@@ -55,9 +64,14 @@ public:
         return false;
     }
 
-    void await_suspend(std::coroutine_handle<> continuation) noexcept {
+    void await_suspend(const std::coroutine_handle<> continuation) noexcept {
+        auto caller_promise = std::coroutine_handle<basic_promise>::from_address(
+                                    continuation.address())
+                                        .promise();
+
+        handle_.promise().pool_ = caller_promise.pool_;
         handle_.promise().continuation_ = continuation;
-        g_loop.schedule(handle_);
+        handle_.promise().pool_->Schedule(handle_);
     }
 
     T await_resume() {
@@ -69,6 +83,13 @@ public:
     }
 
     Task(coro_handle_t h) : handle_(h) {}
+    Task(Task&& rhs, EventPool* pool)
+        : handle_(std::exchange(rhs.handle_, nullptr))
+    {
+        if (handle_) {
+            handle_.promise().pool_ = pool;
+        }
+    }
     ~Task() { if (handle_) handle_.destroy(); }
 
     Task(const Task&) = delete;
@@ -82,7 +103,12 @@ public:
         return *this;
     }
 
-    coro_handle_t Handle() { return handle_; }
+    void Attach(EventPool& pool) const {
+        if (handle_) {
+            handle_.promise().pool_ = std::addressof(pool);
+            pool.Schedule(handle_);
+        }
+    }
 
 private:
     coro_handle_t handle_;
@@ -94,10 +120,7 @@ public:
     struct promise_type;
     using coro_handle_t = std::coroutine_handle<promise_type>;
 
-    struct promise_type {
-        std::exception_ptr exception_;
-        std::coroutine_handle<> continuation_{nullptr};
-
+    struct promise_type final : basic_promise {
         struct final_awaiter;
 
         auto get_return_object() {
@@ -114,12 +137,14 @@ public:
 
         void return_void() noexcept {}
 
-        void unhandled_exception() { exception_ = std::current_exception(); }
+        void unhandled_exception() {
+            exception_ = std::current_exception();
+        }
 
         struct final_awaiter {
             bool await_ready() noexcept { return false; }
 
-            std::coroutine_handle<> await_suspend(coro_handle_t handle) noexcept {
+            std::coroutine_handle<> await_suspend(const coro_handle_t handle) noexcept {
                 if (handle.promise().continuation_) {
                     return handle.promise().continuation_;
                 }
@@ -134,9 +159,14 @@ public:
         return false;
     }
 
-    void await_suspend(std::coroutine_handle<> continuation) noexcept {
+    void await_suspend(const std::coroutine_handle<> continuation) noexcept {
+        auto caller_promise = std::coroutine_handle<basic_promise>::from_address(
+                                    continuation.address())
+                                        .promise();
+
+        handle_.promise().pool_ = caller_promise.pool_;
         handle_.promise().continuation_ = continuation;
-        g_loop.schedule(handle_);
+        handle_.promise().pool_->Schedule(handle_);
     }
 
     void await_resume() {
@@ -145,7 +175,14 @@ public:
         }
     }
 
-    Task(coro_handle_t h) : handle_(h) {}
+    Task(const coro_handle_t h) : handle_(h) {}
+    Task(Task&& rhs, EventPool* pool)
+        : handle_(std::exchange(rhs.handle_, nullptr))
+    {
+        if (handle_) {
+            handle_.promise().pool_ = pool;
+        }
+    }
     ~Task() { if (handle_) handle_.destroy(); }
 
     Task(const Task&) = delete;
@@ -159,23 +196,15 @@ public:
         return *this;
     }
 
-    coro_handle_t Handle() { return handle_; }
+    void Attach(EventPool& pool) const {
+        if (handle_) {
+            handle_.promise().pool_ = std::addressof(pool);
+            pool.Schedule(handle_);
+        }
+    }
 
 private:
     coro_handle_t handle_;
-};
-
-struct AsyncSleep {
-    std::chrono::milliseconds duration;
-
-    bool await_ready() const noexcept { return duration.count() <= 0; }
-
-    void await_suspend(std::coroutine_handle<> h) noexcept {
-        const auto wake_time = EventPool::clock_t::now() + duration;
-        g_loop.wait_until(h, wake_time);
-    }
-
-    void await_resume() noexcept {}
 };
 
 } // namespace coro

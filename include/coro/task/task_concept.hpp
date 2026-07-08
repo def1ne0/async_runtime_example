@@ -1,0 +1,12 @@
+#pragma once
+
+#include <concepts>
+
+namespace coro {
+
+template <typename Task, typename Pool>
+concept attached_task_type = requires(Task task, Pool pool) {
+    { task.Attach(pool) } -> std::same_as<void>;
+};
+
+} // namespace coro

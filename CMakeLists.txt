@@ -13,6 +13,9 @@ find_package(Boost REQUIRED COMPONENTS atomic)
 add_executable(${PROJECT_NAME} main.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
-target_sources(${PROJECT_NAME} PRIVATE src/coro/pool/event_pool.cpp)
+target_sources(${PROJECT_NAME} PRIVATE
+        src/coro/pool/event_pool.cpp
+        src/coro/awaiters/async_sleep.cpp
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Boost::atomic atomic)
