@@ -4,25 +4,26 @@
 #include <memory>
 #include <optional>
 
+#include <coro/pool/pool_concept.hpp>
+
 namespace coro {
 
-class EventPool; // No need to include full include/coro/pool/event_pool.hpp header.
-
+template <typename P>
 struct basic_promise {
-    EventPool* pool_{nullptr};
+    P* pool_{nullptr};
     std::coroutine_handle<> continuation_{nullptr};
     std::exception_ptr exception_;
 };
 
-template <typename T>
+template <typename T, pool_type Pool>
 class Task {
 public:
     struct promise_type;
     using coro_handle_t = std::coroutine_handle<promise_type>;
 
-    struct promise_type final : basic_promise {
+    struct promise_type final : basic_promise<Pool> {
+        using basic_promise<Pool>::exception_;
         std::optional<T> result_;
-
         struct final_awaiter;
 
         auto get_return_object() {
@@ -65,7 +66,7 @@ public:
     }
 
     void await_suspend(const std::coroutine_handle<> continuation) noexcept {
-        auto caller_promise = std::coroutine_handle<basic_promise>::from_address(
+        auto caller_promise = std::coroutine_handle<basic_promise<Pool>>::from_address(
                                     continuation.address())
                                         .promise();
 
@@ -83,7 +84,7 @@ public:
     }
 
     Task(coro_handle_t h) : handle_(h) {}
-    Task(Task&& rhs, EventPool* pool)
+    Task(Task&& rhs, Pool* pool)
         : handle_(std::exchange(rhs.handle_, nullptr))
     {
         if (handle_) {
@@ -103,7 +104,7 @@ public:
         return *this;
     }
 
-    void Attach(EventPool& pool) const {
+    void Attach(Pool& pool) const {
         if (handle_) {
             handle_.promise().pool_ = std::addressof(pool);
             pool.Schedule(handle_);
@@ -114,13 +115,14 @@ private:
     coro_handle_t handle_;
 };
 
-template <>
-class Task<void> {
+template <typename Pool>
+class Task<void, Pool> {
 public:
     struct promise_type;
     using coro_handle_t = std::coroutine_handle<promise_type>;
 
-    struct promise_type final : basic_promise {
+    struct promise_type final : basic_promise<Pool> {
+        using basic_promise<Pool>::exception_;
         struct final_awaiter;
 
         auto get_return_object() {
@@ -160,7 +162,7 @@ public:
     }
 
     void await_suspend(const std::coroutine_handle<> continuation) noexcept {
-        auto caller_promise = std::coroutine_handle<basic_promise>::from_address(
+        auto caller_promise = std::coroutine_handle<basic_promise<Pool>>::from_address(
                                     continuation.address())
                                         .promise();
 
@@ -176,7 +178,7 @@ public:
     }
 
     Task(const coro_handle_t h) : handle_(h) {}
-    Task(Task&& rhs, EventPool* pool)
+    Task(Task&& rhs, Pool* pool)
         : handle_(std::exchange(rhs.handle_, nullptr))
     {
         if (handle_) {
@@ -196,7 +198,7 @@ public:
         return *this;
     }
 
-    void Attach(EventPool& pool) const {
+    void Attach(Pool& pool) const {
         if (handle_) {
             handle_.promise().pool_ = std::addressof(pool);
             pool.Schedule(handle_);

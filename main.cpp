@@ -5,7 +5,7 @@
 
 coro::EventPool pool;
 
-coro::Task<void> first() {
+coro::Task<void, coro::EventPool> first() {
     std::println("[first] started");
 
     std::println("[first] large calculation started");
@@ -15,7 +15,7 @@ coro::Task<void> first() {
     std::println("[first] finished");
 }
 
-coro::Task<int> third(const int value) {
+coro::Task<int, coro::EventPool> third(const int value) {
     std::println("[third] started");
 
     std::println("[third] large calculation started");
@@ -27,7 +27,7 @@ coro::Task<int> third(const int value) {
     co_return value * 2;
 }
 
-coro::Task<void> second() {
+coro::Task<void, coro::EventPool> second() {
     std::println("[second] started");
 
     std::println("[second] calling third with 26");

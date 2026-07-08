@@ -8,7 +8,7 @@ bool AsyncSleep::await_ready() const noexcept {
 }
 
 void AsyncSleep::await_suspend(const std::coroutine_handle<> h) noexcept {
-    const auto promise = std::coroutine_handle<Task<void>::promise_type>::from_address(
+    const auto promise = std::coroutine_handle<Task<void, EventPool>::promise_type>::from_address(
                                 h.address())
                                     .promise();
     const auto wake_time = EventPool::clock_t::now() + duration;
