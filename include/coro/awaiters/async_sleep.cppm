@@ -13,10 +13,16 @@ module;
 
 export module coro.async_sleep;
 
+import coro.event_pool;
+
 namespace coro {
 
-export struct AsyncSleep final {
-    std::chrono::milliseconds duration;
+export class AsyncSleep final {
+    EventPool& pool_;
+    std::chrono::microseconds duration_;
+
+public:
+    explicit AsyncSleep(std::chrono::milliseconds duration, EventPool& pool);
 
     bool await_ready() const noexcept;
     void await_suspend(std::coroutine_handle<> h) noexcept;

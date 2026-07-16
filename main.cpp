@@ -1,3 +1,11 @@
+/* ==============================================
+ * This file is under MIT License.
+ * For details, see LICENSE.md
+ *
+ * Copyright (c) 2026 Arseniy Finevich
+ * ==============================================
+ */
+
 #include <print> // for std::println
 #include <chrono> // for std::chrono::milliseconds
 #include <coroutine> // for std::coroutine_traits
@@ -12,7 +20,7 @@ coro::Task<void, coro::EventPool> first() {
     std::println("[first] started");
 
     std::println("[first] large calculation started");
-    co_await coro::AsyncSleep{std::chrono::milliseconds{100}};
+    co_await coro::AsyncSleep{std::chrono::milliseconds{100'00}, pool};
     std::println("[first] large calculation finished");
 
     std::println("[first] finished");
@@ -22,7 +30,7 @@ coro::Task<int, coro::EventPool> third(const int value) {
     std::println("[third] started");
 
     std::println("[third] large calculation started");
-    co_await coro::AsyncSleep{std::chrono::milliseconds{300}};
+    co_await coro::AsyncSleep{std::chrono::milliseconds{300'00}, pool};
     std::println("[third] large calculation finished");
 
     std::println("[third] finished");

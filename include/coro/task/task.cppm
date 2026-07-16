@@ -98,7 +98,7 @@ public:
 
         // Result must be constructed already.
         // Otherwise, UB.
-        assert(handle_.promise().result_.has_value(),
+        assert(handle_.promise().result_.has_value() &&
             "Result must be constructed when coroutine resumes");
         return std::move(*handle_.promise().result_);
     }
