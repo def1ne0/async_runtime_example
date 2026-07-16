@@ -1,7 +1,10 @@
-#include <print>
-#include <coro/pool/event_pool.hpp>
-#include <coro/task/task.hpp>
-#include <coro/awaiters/async_sleep.hpp>
+#include <print> // for std::println
+#include <chrono> // for std::chrono::milliseconds
+#include <coroutine> // for std::coroutine_traits
+
+import coro.task;
+import coro.event_pool;
+import coro.async_sleep;
 
 coro::EventPool pool;
 
@@ -31,20 +34,20 @@ coro::Task<void, coro::EventPool> second() {
     std::println("[second] started");
 
     std::println("[second] calling third with 26");
-    auto res = co_await coro::Task{third(26), &pool};
+    auto res = co_await coro::Task{third(26), pool};
     std::println("[second] third finished with result: {}", res);
 
     std::println("[second] finished");
 }
 
 int main() {
-    const auto fst = coro::Task{first(), &pool};
-    const auto snd = coro::Task{second(), &pool};
+    auto fst = coro::Task{first(), pool};
+    auto snd = coro::Task{second(), pool};
 
-    pool.Schedule(fst);
-    pool.Schedule(snd);
+    pool.add_task(fst);
+    pool.add_task(snd);
 
     std::println("Event pool started");
-    pool.Run();
+    pool.run();
     std::println("Event pool finished");
 }

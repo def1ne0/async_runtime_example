@@ -1,16 +1,29 @@
-#include <coro/pool/event_pool.hpp>
+/* ==============================================
+ * This file is under MIT License.
+ * For details, see LICENSE.md
+ *
+ * Copyright (c) 2026 Arseniy Finevich
+ * ==============================================
+ */
+
+module;
+
+#include <bits/this_thread_sleep.h> // for std::this_thread::sleep_for
+#include <coroutine> // for std::coroutine_handle
+
+module coro.event_pool;
 
 namespace coro {
 
-void EventPool::Schedule(const std::coroutine_handle<> handle) {
+void EventPool::add_coro_handle(const std::coroutine_handle<> handle) {
     ready_queue_.push(handle);
 }
 
-void EventPool::Wait_until(const std::coroutine_handle<> handle, const timepoint_t& wake_time) {
+void EventPool::wait_until(const std::coroutine_handle<> handle, const timepoint_t& wake_time) {
     waiting_timers_.push_back({wake_time, handle});
 }
 
-void EventPool::Run() {
+void EventPool::run() {
     while (!ready_queue_.empty() || !waiting_timers_.empty()) {
         auto now = clock_t::now();
 

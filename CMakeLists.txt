@@ -12,10 +12,20 @@ find_package(Boost REQUIRED COMPONENTS atomic)
 
 add_executable(${PROJECT_NAME} main.cpp)
 
-target_include_directories(${PROJECT_NAME} PRIVATE include)
+target_sources(${PROJECT_NAME} PRIVATE
+        FILE_SET modules
+        TYPE CXX_MODULES FILES
+        include/coro/awaiters/async_sleep.cppm
+        include/coro/concepts/pool_concept.cppm
+        include/coro/concepts/task_concept.cppm
+        include/coro/pool/event_pool.cppm
+        include/coro/task/task.cppm
+)
+
 target_sources(${PROJECT_NAME} PRIVATE
         src/coro/pool/event_pool.cpp
         src/coro/awaiters/async_sleep.cpp
 )
+
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Boost::atomic atomic)

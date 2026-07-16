@@ -1,14 +1,25 @@
-#pragma once
+/* ==============================================
+ * This file is under MIT License.
+ * For details, see LICENSE.md
+ *
+ * Copyright (c) 2026 Arseniy Finevich
+ * ==============================================
+ */
+
+module;
 
 #include <coroutine>
 #include <exception>
 #include <utility>
 #include <print>
 
+export module coro.simple_generator;
+
 namespace coro {
 
+export
 template <typename T>
-class Generator {
+class Generator final {
 public:
     struct promise_type;
     using coro_handle_t = std::coroutine_handle<promise_type>;
